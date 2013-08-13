@@ -7,3 +7,10 @@
 * Definicion de la ejecucion de un programa `public static void main(String[] args)`
 * Programa de ejemplo
 * Metodo toString
+
+## Clase 2
+* Packages
+* Visibilidad
+* Sobrecarga
+* Arrays ([])
+
