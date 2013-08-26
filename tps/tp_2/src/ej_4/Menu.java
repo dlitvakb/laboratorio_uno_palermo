@@ -13,8 +13,7 @@ public class Menu {
 			boolean continuar = true;
 			while (personas.size() < 10 && continuar) {
 				int option = Integer
-						.parseInt(JOptionPane
-								.showInputDialog("Elegi una opcion:\n\t1. Crear Empleado\n\t2. Crear Ejecutivo\n\t3. Ver Listado\n\t4. Salir"));
+						.parseInt(jInput("Elegi una opcion:\n\t1. Crear Empleado\n\t2. Crear Ejecutivo\n\t3. Ver Listado\n\t4. Salir"));
 				switch (option) {
 				case 1:
 					personas.add(crearEmpleado());
@@ -39,12 +38,16 @@ public class Menu {
 		JOptionPane.showMessageDialog(null, personas.toString());
 	}
 
+	public static String jInput(String displayText) {
+		return JOptionPane.showInputDialog(displayText);
+	}
+
 	private static String getNombre() {
-		return JOptionPane.showInputDialog("Ingrese el nombre");
+		return jInput("Ingrese el nombre");
 	}
 
 	private static long getDNI() {
-		return Long.parseLong(JOptionPane.showInputDialog("Ingrese el DNI"));
+		return Long.parseLong(jInput("Ingrese el DNI"));
 	}
 
 	private static Persona crearEjecutivo() {
@@ -53,12 +56,12 @@ public class Menu {
 	}
 
 	private static int getHorasTrabajo() {
-		return Integer.parseInt(JOptionPane
-				.showInputDialog("Ingrese la cantidad de horas trabajadas"));
+		return Integer
+				.parseInt(jInput("Ingrese la cantidad de horas trabajadas"));
 	}
 
 	private static int getEdad() {
-		return Integer.parseInt(JOptionPane.showInputDialog("Ingrese la edad"));
+		return Integer.parseInt(jInput("Ingrese la edad"));
 	}
 
 	private static Persona crearEmpleado() {
@@ -67,18 +70,17 @@ public class Menu {
 	}
 
 	private static int getDiasTrabajados() {
-		return Integer.parseInt(JOptionPane
-				.showInputDialog("Ingrese la cantidad de dias trabajados"));
+		return Integer
+				.parseInt(jInput("Ingrese la cantidad de dias trabajados"));
 
 	}
 
 	private static double getSueldo() {
-		return Double.parseDouble(JOptionPane
-				.showInputDialog("Ingrese el sueldo"));
+		return Double.parseDouble(jInput("Ingrese el sueldo"));
 
 	}
 
 	private static String getLegajo() {
-		return JOptionPane.showInputDialog("Ingrese el Legajo");
+		return jInput("Ingrese el Legajo");
 	}
 }
