@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="tp_1/src"/>
+	<classpathentry kind="src" path="tp_2/src"/>
+	<classpathentry kind="src" path="tp_3/src"/>
+	<classpathentry kind="src" path="tp_final/issueTracker/app"/>
+	<classpathentry kind="src" path="tp_final/issueTracker/target/scala-2.10/src_managed/main"/>
+	<classpathentry kind="src" path="tp_final/issueTracker/test"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="output" path="tp_final/issueTracker/target/scala-2.10/classes_managed"/>
+</classpath>

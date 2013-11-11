@@ -1,2 +1,4 @@
 *.class
 tp*/bin/
+IssueTrackerAPI/bin/
+*.DS_Store
