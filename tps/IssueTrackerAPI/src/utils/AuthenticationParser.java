@@ -12,71 +12,74 @@ import org.apache.commons.codec.binary.Base64;
 import dao.UserDAO;
 
 public class AuthenticationParser {
+    private User userObject;
+    private String user;
+    private String password;
 
-	private String user;
-	private String password;
+    public AuthenticationParser(String authentication) {
+        Map<String, String> parsed = this.parse(authentication);
+        this.setUser(parsed.get("user"));
+        this.setPassword(parsed.get("password"));
+    }
 
-	public AuthenticationParser(String authentication) {
-		Map<String, String> parsed = this.parse(authentication);
-		this.setUser(parsed.get("user"));
-		this.setPassword(parsed.get("password"));
-	}
+    private Map<String, String> parse(String authentication) {
+        if (authentication == null || !authentication.startsWith("Basic")) {
+            throw new AuthenticationException();
+        }
 
-	private Map<String, String> parse(String authentication) {
-		if (authentication == null || !authentication.startsWith("Basic")) {
-			throw new AuthenticationException();
-		}
+        Map<String, String> result = new HashMap<String, String>();
 
-		Map<String, String> result = new HashMap<String, String>();
+        for (String part : authentication.split(" ")) {
+            if (part.startsWith("Basic")) {
+                continue;
+            }
 
-		for (String part : authentication.split(" ")) {
-			if (part.startsWith("Basic")) {
-				continue;
-			}
+            try {
+                String base64 = new String(Base64.decodeBase64(part), "UTF-8");
+                result.put("user", base64.split(":")[0]);
+                result.put("password", base64.split(":")[1]);
+            } catch (UnsupportedEncodingException e) {
+                // Silenced
+            }
+        }
 
-			try {
-				String base64 = new String(Base64.decodeBase64(part), "UTF-8");
-				result.put("user", base64.split(":")[0]);
-				result.put("password", base64.split(":")[1]);
-			} catch (UnsupportedEncodingException e) {
-				// Silenced
-			}
-		}
+        return result;
+    }
 
-		return result;
-	}
+    public boolean isAuthenticated() {
+        try {
+            return this.getUser().authenticate(this.getPassword());
+        } catch (NotFoundException | NoSuchAlgorithmException
+                | UnsupportedEncodingException e) {
+            return false;
+        }
+    }
 
-	public boolean isAuthenticated() {
-		try {
-			return this.getUser().authenticate(this.getPassword());
-		} catch (NotFoundException | NoSuchAlgorithmException
-				| UnsupportedEncodingException e) {
-			return false;
-		}
-	}
+    private String getUsername() {
+        return this.user;
+    }
 
-	private String getUsername() {
-		return this.user;
-	}
+    public User getUser() throws NoSuchAlgorithmException,
+            UnsupportedEncodingException {
+        if (this.userObject != null) {
+            return this.userObject;
+        }
 
-	public User getUser() throws NoSuchAlgorithmException,
-			UnsupportedEncodingException {
-		User user = new UserDAO().byUser(this.getUsername());
-		user.authenticate(this.getPassword());
+        this.userObject = new UserDAO().byUser(this.getUsername());
+        this.userObject.authenticate(this.getPassword());
 
-		return user;
-	}
+        return this.userObject;
+    }
 
-	private void setUser(String user) {
-		this.user = user;
-	}
+    private void setUser(String user) {
+        this.user = user;
+    }
 
-	private String getPassword() {
-		return this.password;
-	}
+    private String getPassword() {
+        return this.password;
+    }
 
-	private void setPassword(String password) {
-		this.password = password;
-	}
-
+    private void setPassword(String password) {
+        this.password = password;
+    }
 }

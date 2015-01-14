@@ -17,195 +17,245 @@ import utils.CouldNotSaveException;
 import utils.NotFoundException;
 
 public abstract class DAO<T extends APIModel> {
-	static {
-		try {
-			Class.forName("org.sqlite.JDBC");
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-	}
+    static {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
-	protected Connection getConnection() throws SQLException {
-		return DriverManager.getConnection("jdbc:sqlite:"
-				+ System.getProperty("user.dir") + "/issues.db");
-	}
+    protected Connection getConnection() throws SQLException {
+        Connection connection = DriverManager.getConnection("jdbc:sqlite:"
+                + System.getProperty("user.dir") + "/issues.db");
+        PreparedStatement stmt = connection
+                .prepareStatement("PRAGMA foreign_keys = ON");
+        stmt.execute();
+        stmt.close();
 
-	protected abstract T parseResults(ResultSet rs) throws SQLException;
+        return connection;
+    }
 
-	public List<T> all() {
-		try {
-			ResultSet rs = this.getConnection().createStatement()
-					.executeQuery("SELECT * FROM " + this.getTable());
-			List<T> results = new ArrayList<T>();
+    protected abstract T parseResults(ResultSet rs) throws SQLException;
 
-			while (rs.next()) {
-				results.add(this.parseResults(rs));
-			}
+    protected PreparedStatement createStatement() throws SQLException {
+        return this.createStatement(new ArrayList<String>());
+    }
 
-			rs.close();
+    protected PreparedStatement createStatement(List<String> conditions)
+            throws SQLException {
+        String sql = "SELECT * FROM " + this.getTable();
 
-			return results;
-		} catch (SQLException e) {
-			throw new NotFoundException(e);
-		}
-	}
+        Boolean first = true;
+        for (String c : conditions) {
+            if (first) {
+                sql += " WHERE " + c + " = ?";
+                first = false;
+                continue;
+            }
 
-	public T byId(Long id) {
-		try {
-			PreparedStatement statement = this.getConnection()
-					.prepareStatement(
-							"SELECT * FROM " + this.getTable()
-									+ " WHERE id = ?");
-			statement.setLong(1, id);
-			ResultSet rs = statement.executeQuery();
+            sql += " AND " + c + " = ?";
+        }
+        return this.getConnection().prepareStatement(sql);
+    }
 
-			T result = this.parseResults(rs);
+    protected T doParseResultsMultiple(ResultSet rs) throws SQLException {
+        return this.parseResults(rs);
+    }
 
-			rs.close();
+    protected T doParseResultsSingle(ResultSet rs) throws SQLException {
+        return this.parseResults(rs);
+    }
 
-			return result;
-		} catch (SQLException e) {
-			throw new NotFoundException(WordUtils.capitalize(this.getTable())
-					+ " Not Found");
-		}
-	}
+    protected List<T> parseMultiple(ResultSet rs) throws SQLException {
+        List<T> results = new ArrayList<T>();
 
-	protected abstract String getTable();
+        while (rs.next()) {
+            results.add(this.doParseResultsMultiple(rs));
+        }
 
-	public T save(T model) {
-		try {
-			if (model.hasId()) {
-				return this.doUpdate(model);
-			} else {
-				return this.doSave(model);
-			}
-		} catch (SQLException e) {
-			throw new CouldNotSaveException(e);
-		}
-	}
+        rs.close();
 
-	public void remove(Long id) {
-		try {
-			PreparedStatement statement = this.getConnection()
-					.prepareStatement(
-							"DELETE FROM " + this.getTable() + "WHERE id = ?");
-			statement.setLong(1, id);
-			statement.executeUpdate();
+        return results;
+    }
 
-			statement.close();
-		} catch (SQLException e) {
-			throw new NotFoundException(e);
-		}
-	}
+    protected T parseSingle(ResultSet rs) throws SQLException {
+        T result = this.doParseResultsSingle(rs);
 
-	private T doSave(T model) throws SQLException {
-		String sql = "INSERT INTO " + this.getTable() + " "
-				+ this.buildColumns(model.getColumns()) + " VALUES "
-				+ this.buildValues(model.getColumns(), model);
+        rs.close();
 
-		PreparedStatement statement = this.getConnection()
-				.prepareStatement(sql);
+        return result;
+    }
 
-		statement.executeUpdate();
+    public List<T> all() {
+        try {
+            PreparedStatement statement = this.createStatement();
+            List<T> objects = this.parseMultiple(statement.executeQuery());
+            statement.close();
+            return objects;
+        } catch (SQLException e) {
+            throw new NotFoundException(e);
+        }
+    }
 
-		Long id = statement.getGeneratedKeys().getLong(1);
-		model.setId(id);
+    public T byId(Long id) {
+        try {
+            List<String> args = new ArrayList<String>();
+            args.add("id");
+            PreparedStatement statement = this.createStatement(args);
+            statement.setLong(1, id);
+            T object = this.parseSingle(statement.executeQuery());
+            statement.close();
+            return object;
+        } catch (SQLException e) {
+            throw new NotFoundException(WordUtils.capitalize(this.getTable())
+                    + " Not Found", e);
+        }
+    }
 
-		statement.close();
+    public abstract String getTable();
 
-		return model;
-	}
+    public T save(T model) {
+        try {
+            if (model.hasId()) {
+                return this.doUpdate(model);
+            } else {
+                return this.doSave(model);
+            }
+        } catch (SQLException e) {
+            throw new CouldNotSaveException(e);
+        }
+    }
 
-	private T doUpdate(T model) throws SQLException {
-		PreparedStatement statement = this.getConnection().prepareStatement(
-				"UPDATE " + this.getTable() + " SET " + this.buildUpdate(model)
-						+ " WHERE id = ?");
+    public void remove(Long id) {
+        try {
+            PreparedStatement statement = this.getConnection()
+                    .prepareStatement(
+                            "DELETE FROM " + this.getTable() + " WHERE id = ?");
+            statement.setLong(1, id);
+            statement.executeUpdate();
 
-		statement.setLong(1, model.getId());
+            statement.close();
+        } catch (SQLException e) {
+            throw new NotFoundException(e);
+        }
+    }
 
-		statement.executeUpdate();
+    private T doSave(T model) throws SQLException {
+        String sql = "INSERT INTO " + this.getTable() + " "
+                + this.buildColumns(model.getColumns()) + " VALUES "
+                + this.buildValues(model.getColumns(), model);
 
-		statement.close();
+        PreparedStatement statement = this.getConnection()
+                .prepareStatement(sql);
 
-		return model;
-	}
+        statement.executeUpdate();
 
-	private String buildValue(String column, T model)
-			throws NoSuchFieldException, SecurityException,
-			IllegalArgumentException, IllegalAccessException {
-		Field field = model.getClass().getDeclaredField(column);
-		field.setAccessible(true);
+        Long id = statement.getGeneratedKeys().getLong(1);
+        model.setId(id);
 
-		if (field.getType() == boolean.class) {
-			return field.getBoolean(model) ? "1" : "0";
-		} else if (field.getType() == String.class) {
-			Object value = field.get(model);
-			if (value == null) {
-				return "null";
-			} else {
-				return "\"" + (String) value + "\"";
-			}
-		} else if (field.getType() == long.class) {
-			return String.valueOf(field.getLong(model));
-		}
+        statement.close();
 
-		throw new RuntimeException("Field type not known");
-	}
+        return model;
+    }
 
-	private String buildUpdate(T model) {
-		String result = "";
-		String separator = ", ";
+    private T doUpdate(T model) throws SQLException {
+        PreparedStatement statement = this.getConnection().prepareStatement(
+                "UPDATE " + this.getTable() + " SET " + this.buildUpdate(model)
+                        + " WHERE id = ?");
 
-		boolean first = true;
-		for (String column : model.getColumns()) {
+        statement.setLong(1, model.getId());
 
-			try {
-				result += (!first ? separator : "") + column + " = "
-						+ this.buildValue(column, model);
-				first = false;
-			} catch (NoSuchFieldException | IllegalAccessException
-					| RuntimeException e) {
-				continue;
-			}
-		}
+        statement.executeUpdate();
 
-		return result;
-	}
+        statement.close();
 
-	private String buildValues(List<String> columns, T model) {
-		String result = "(";
-		String separator = ", ";
+        return model;
+    }
 
-		boolean first = true;
-		for (String column : model.getColumns()) {
-			try {
-				result += (!first ? separator : "")
-						+ this.buildValue(column, model);
-				first = false;
-			} catch (NoSuchFieldException | SecurityException
-					| IllegalArgumentException | IllegalAccessException e) {
-				continue;
-			}
-		}
+    private String buildValue(String column, T model)
+            throws NoSuchFieldException, SecurityException,
+            IllegalArgumentException, IllegalAccessException {
+        Field field = this.getAccessibleField(column, model);
 
-		result += ")";
+        if (field.getType() == boolean.class) {
+            return field.getBoolean(model) ? "1" : "0";
+        } else if (field.getType() == String.class) {
+            Object value = field.get(model);
+            if (value == null) {
+                return "null";
+            } else {
+                return "\"" + (String) value + "\"";
+            }
+        } else if (field.getType() == long.class) {
+            return String.valueOf(field.getLong(model));
+        }
 
-		return result;
-	}
+        throw new RuntimeException("Field type not known");
+    }
 
-	private String buildColumns(List<String> columns) {
-		String separator = ", ";
-		String result = "(";
+    private Field getAccessibleField(String column, T model)
+            throws NoSuchFieldException, SecurityException {
+        Field field = model.getClass().getDeclaredField(column);
+        field.setAccessible(true);
+        return field;
+    }
 
-		boolean first = true;
+    private String buildUpdate(T model) {
+        String result = "";
+        String separator = ", ";
 
-		for (String c : columns) {
-			result += (!first ? separator : "") + c;
-			first = false;
-		}
-		result += ")";
+        boolean first = true;
+        for (String column : model.getColumns()) {
 
-		return result;
-	}
+            try {
+                if (this.getAccessibleField(column, model).get(model) != null) {
+                    result += (!first ? separator : "") + column + " = "
+                            + this.buildValue(column, model);
+                    first = false;
+                }
+            } catch (NoSuchFieldException | IllegalAccessException
+                    | RuntimeException e) {
+                continue;
+            }
+        }
 
+        return result;
+    }
+
+    private String buildValues(List<String> columns, T model) {
+        String result = "(";
+        String separator = ", ";
+
+        boolean first = true;
+        for (String column : model.getColumns()) {
+            try {
+                result += (!first ? separator : "")
+                        + this.buildValue(column, model);
+                first = false;
+            } catch (NoSuchFieldException | SecurityException
+                    | IllegalArgumentException | IllegalAccessException e) {
+                continue;
+            }
+        }
+
+        result += ")";
+
+        return result;
+    }
+
+    private String buildColumns(List<String> columns) {
+        String separator = ", ";
+        String result = "(";
+
+        boolean first = true;
+
+        for (String c : columns) {
+            result += (!first ? separator : "") + c;
+            first = false;
+        }
+        result += ")";
+
+        return result;
+    }
 }
